@@ -12,16 +12,23 @@ def init(Screen):
 
 def clicked(pos):
     for button in Button.buttons:
-        if button.x < pos[0] < button.x + button.text.get_width() + button.padding*2 and \
-           button.y < pos[1] < button.y + button.text.get_height() + button.padding*2:
+        # Calculate button bounds based on background rectangle
+        button_width = button.width if button.width != "auto" else button.textSurface.get_width() + button.padding*2
+        button_height = button.height if button.height != "auto" else button.textSurface.get_height() + button.padding*2
+        
+        if button.x < pos[0] < button.x + button_width and \
+           button.y < pos[1] < button.y + button_height:
             if button.on_click:
                 button.on_click()
 
 def hover(pos):
-    print(pos)
     for button in Button.buttons:
-        if button.x < pos[0] < button.x + button.text.get_width() + button.padding*2 and \
-           button.y < pos[1] < button.y + button.text.get_height() + button.padding*2:
+        # Calculate button bounds based on background rectangle
+        button_width = button.width if button.width != "auto" else button.textSurface.get_width() + button.padding*2
+        button_height = button.height if button.height != "auto" else button.textSurface.get_height() + button.padding*2
+        
+        if button.x < pos[0] < button.x + button_width and \
+           button.y < pos[1] < button.y + button_height:
             if button.on_hover:
                 button.on_hover()
         else:
@@ -49,19 +56,30 @@ class Text:
             self.x = x - self.surface.get_width()
         self.y = y
         Text.labels.append(self)
+        
     def update_surface(self):
         self.surface = self.font.render(self.text, True, self.color)
+        return self
+        
     def render(self):
         screen.blit(self.surface, (self.x, self.y))
+        return self
+        
     def set_text(self, text):
         self.text = text
         self.update_surface()
+        return self
+        
     def set_color(self, color):
         self.color = color
-        self.update_surface()   
+        self.update_surface()
+        return self
+        
     def set_font(self, font_name, size):
         self.font = get_font(size, font_name)
         self.update_surface()
+        return self
+        
     def set_position(self, x, y):
         self.x = x
         if self.align == "center":
@@ -69,6 +87,8 @@ class Text:
         elif self.align == "right":
             self.x = x - self.surface.get_width()
         self.y = y
+        return self
+
     def get_width(self):
         return self.surface.get_width()
     def get_height(self):
@@ -77,8 +97,9 @@ class Text:
 
 class Button:
     buttons = []
-    def __init__(self, text, font_name="Arial", size=12, color=(255,255,255), x=0, y=0, align="left", padding=5, bg_color=(0,0,0), on_click=None, on_hover=None, on_stop_hover=None):
-        self.text = Text(text, font_name, size, color, x + padding, y + padding, align)
+    def __init__(self, text, font_name="Arial", size=12, color=(255,255,255), x=0, y=0, width="auto", height="auto", align="left", padding=5, bg_color=(0,0,0), on_click=None, on_hover=None, on_stop_hover=None):
+        self.textSurface = Text(text, font_name, size, color, x + padding, y + padding, align)
+        self.text = text
         self.font_name = font_name
         self.size = size
         self.padding = padding
@@ -86,27 +107,68 @@ class Button:
         self.bg_color = bg_color
         self.x = x
         self.y = y
+        self.width = width
+        self.height = height
         self.on_click = on_click
         self.on_hover = on_hover
+        self.on_stop_hover = on_stop_hover
+        self.align = align
         Button.buttons.append(self)
+        
     def render(self):
-        pygame.draw.rect(screen, self.bg_color, (self.x, self.y, self.text.get_width() + self.padding*2, self.text.get_height() + self.padding*2))
-        self.text.render()
+        tw, th = self.textSurface.get_width(), self.textSurface.get_height()
+        bgw, bgh = self.padding*2, self.padding*2
+        if self.width == "auto":
+            bgw += tw
+        elif int(self.width) > 0:
+            bgw += self.width
+        
+        if self.height == "auto":
+            bgh += th
+        elif int(self.height) > 0:
+            bgh += self.height
+        pygame.draw.rect(screen, self.bg_color, (self.x, self.y, bgw, bgh))
+        self.textSurface.render()
+        return self
+
+    def update_surface(self):
+        self.textSurface = Text(self.text, self.font_name, self.size, self.color, 
+                        self.x + self.padding, self.y + self.padding, self.align)
+        return self
+        
     def set_position(self, x, y):
         self.x = x
         self.y = y
-        self.text = Text(self.text.text, self.text.font_name, self.text.size, self.text.color, self.x + self.padding, self.y + self.padding, self.text.align)
+        self.update_surface()
+        return self
+        
     def set_text(self, text):
-        self.text = Text(text, self.text.font_name, self.text.size, self.text.color, self.x + self.padding, self.y + self.padding, self.text.align)
+        self.text = text
+        self.update_surface()
+        return self
+        
     def set_color(self, color):
-        self.text.set_color(color)
+        self.color = color
+        self.update_surface()
+        return self
+        
     def set_font(self, font_name, size):
-        self.text.set_font(font_name, size)
+        self.font_name = font_name
+        self.size = size
+        self.update_surface()
+        return self
+        
     def set_bg_color(self, color):
         self.bg_color = color
-    def set_position(self, x, y):
-        self.x = x
-        self.y = y
+        return self
+    
+    def set_size(self, width=None, height=None):
+        # Set width/height to given value or keep current value
+        if width:
+            self.width = width or self.width
+        if height:
+            self.height = height or self.height
+        return self
 
 
 def render_ui():
